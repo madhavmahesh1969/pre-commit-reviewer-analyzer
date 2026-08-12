@@ -1,33 +1,63 @@
 import * as vscode from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
+    console.log('Pre-Commit Reviewer & Analyzer extension is now active!');
 
-    // 1. Obtain access to the official VS Code Git Extension API
     const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
     if (!gitExtension) {
-        vscode.window.showErrorMessage('VS Code Git extension is missing or disabled.');
+        vscode.window.showErrorMessage('Git extension not found.');
         return;
     }
 
     const gitApi = gitExtension.getAPI(1);
 
-    // 2. Intercept repository commits
-    gitApi.repositories.forEach((repo: any) => {
-        // Register a pre-commit action/hook on the repository
+    // Function to attach preCommit hook
+    const registerRepoHook = (repo: any) => {
         repo.preCommit = async () => {
             return await runPreCommitAgentFlow(repo);
         };
+    };
+
+    // 1. Attach to repositories already open
+    gitApi.repositories.forEach((repo: any) => {
+        registerRepoHook(repo);
     });
 
-    // Also handle dynamically opened repositories
+    // 2. Attach to repositories opened in the future
     context.subscriptions.push(
         gitApi.onDidOpenRepository((repo: any) => {
-            repo.preCommit = async () => {
-                return await runPreCommitAgentFlow(repo);
-            };
+            registerRepoHook(repo);
         })
     );
 }
+// export function activate(context: vscode.ExtensionContext) {
+
+//     // 1. Obtain access to the official VS Code Git Extension API
+//     const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+//     if (!gitExtension) {
+//         vscode.window.showErrorMessage('VS Code Git extension is missing or disabled.');
+//         return;
+//     }
+
+//     const gitApi = gitExtension.getAPI(1);
+
+//     // 2. Intercept repository commits
+//     gitApi.repositories.forEach((repo: any) => {
+//         // Register a pre-commit action/hook on the repository
+//         repo.preCommit = async () => {
+//             return await runPreCommitAgentFlow(repo);
+//         };
+//     });
+
+//     // Also handle dynamically opened repositories
+//     context.subscriptions.push(
+//         gitApi.onDidOpenRepository((repo: any) => {
+//             repo.preCommit = async () => {
+//                 return await runPreCommitAgentFlow(repo);
+//             };
+//         })
+//     );
+// }
 
 /**
  * Executes the Copilot Agent analysis on staged diffs and handles UI prompt
